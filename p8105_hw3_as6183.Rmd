@@ -52,7 +52,6 @@ most_popular = most_popular%>%
 ```
 
 ```{r}
-library(dplyr)
 pink_lady_coffee_ice_cream = instacart%>%
   filter(product_name=="Pink Lady Apples"|product_name=="Coffee Ice Cream")%>%
   group_by(order_dow,product_name)
@@ -65,3 +64,63 @@ table
 ```
 
 # Problem 2:
+```{r}
+setwd("/Users/13038/Downloads")
+accel = read.csv("accel_data.csv")
+accel = accel%>%
+  mutate(week = factor(week))%>%
+  mutate(weekday_weekend = factor(recode(day,Monday="Weekday",Tuesday="Weekday",Wednesday="Weekday",Thursday="Weekday",Friday="Weekday",Saturday="Weekend",Sunday="Weekend")))%>%
+  pivot_longer(activity.1:activity.1440,names_to="Activity_Minute",values_to="Activity_Counts")
+```
+There are `r nrow(accel)` observations in this data set corresponding to the number of days in which observations were taken and there are `r ncol(accel)` variables which corresponds to the week,day id , day, Activity minute (one row per minute of every day), Activity Counts which gives the value of the activity at that particular minute given in the column next to it, and the weekday vs weekend variable. The value for each activity time variable gives the activity counted at that particular minute of the day. Furthermore, in my tidying procedure I have converted the week variable into a factor since the week is a categorical variable. I also pivoted the activity variables to the longer format as I thought it would be easier to manipulate in the next step when I have to aggregate all of the activity's together by day. 
+
+```{r}
+total_activity_per_day=aggregate(pull(accel,Activity_Counts),by = list(pull(accel,week),pull(accel,day)),FUN=sum)
+accel = accel %>%
+  pivot_wider(names_from="Activity_Minute",values_from="Activity_Counts")%>%
+  mutate(total_activity_per_day = pull(total_activity_per_day,x))
+summarise(.data=accel,Week=week,Day=day,Total_Activity_Per_Day=total_activity_per_day)
+```
+
+```{r}
+ggplot(data=accel,aes(x=day_id,y=total_activity_per_day,color=day))+geom_point()+xlab("Day ID")+ylab("Total Activity Per Day")+ggtitle("Total Activity Measured Per Day Over 5 Weeks")
+```
+
+# Problem 3:
+```{r}
+library(p8105.datasets)
+data("ny_noaa")
+```
+
+The ny_noaa data set contains `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns. The data set contains information from all New York state weather stations such as precipitation in tenths of a mm (prcp), snowfall in mm (snow), snow depth in mm (snwd), maximum temperature (tmax), minimum temperature (tmin), as well as the date (date) and station (id) where the information was collected. Missing data is definitely an issue in this data set as there are `r colSums(is.na(ny_noaa))` rows by column in the data set that contain missing values. Some of these columns have almost 50% of the data missing which is a very large amount. 
+
+```{r}
+ny_noaa=separate(ny_noaa,col="date",into=c("year","month","day"),sep="-")
+ny_noaa=ny_noaa%>%
+  dplyr::arrange(year,month)%>%
+  mutate(prcp=prcp/100,snow=snow/10,snwd=snwd/10,tmax=as.integer(tmax)/10,tmin=as.integer(tmin)/10)
+mode_snowfall = data.frame(table(pull(ny_noaa,snow)))
+```
+
+For snowfall, the most commonly observed values are `r top_n(mode_snowfall,n=1,wt=Freq)[1]` cm. This is probably because there is not that much snow between the months of April through October or November in most areas of the United States, including New York. Therefore, for most of the year you will see 0 cm of snowfall recorded which is why it is the most commonly observed value for snowfall. 
+
+```{r}
+data = aggregate(pull(ny_noaa,tmax),by = list(pull(ny_noaa,month),pull(ny_noaa,year),pull(ny_noaa,id)),FUN=mean,na.rm=T)
+data = filter(data,Group.1=="01"|Group.1=="07")
+data = na.omit(data)
+ggplot(data, aes(x = Group.2, y = x)) +
+  geom_boxplot()+
+  facet_grid(. ~ Group.1)
+```
+
+```{r}
+# data = cbind(pull(ny_noaa,t_max),pull(ny_noaa,t_min))
+# ggplot(ny_noaa, aes(x = , y = x)) +
+#   geom_point()+
+#   facet_grid(. ~ Group.1)
+
+data = filter(ny_noaa,snow<10&snow>0)
+data = aggregate(pull(data,snow),by = list(pull(data,year)),FUN=sum,na.rm=T)
+ggplot(data,aes(x=Group.1,y=x))+
+  geom_boxplot()
+```
