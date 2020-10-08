@@ -42,11 +42,11 @@ From the plot, there are 39 aisles that have over 10,000 items ordered from them
 
 ```{r}
 #library(data.table)
-data = instacart%>%
-  filter(aisle=="baking ingredients"|aisle=="dog food care"|aisle=="packaged vegetables fruits")
+data_bi_dfc_pvf = instacart%>%
+  filter(aisle=="baking ingredients"|aisle=="dog food care"|aisle=="packaged vegetables fruits") #named variable this to indicate that this is a subset of the instacart data set only containg the aisles: baking ingredients (bi), dog food care (dfc), and packaged vegetables fruits (pvf).
 
-most_popular = data%>%
-  count(vars=c('aisle','product_name'))
+most_popular = data_bi_dfc_pvf%>%
+  count(vars=c('aisle','product_name')) #named variable most_popular to indicate that the variable gives information about the most popular aisles that customers order from
 
 most_popular = most_popular%>%
   group_by(aisle)%>%
@@ -60,11 +60,11 @@ This table shows the three most popular items from the packaged vegetables fruit
 ```{r}
 pink_lady_coffee_ice_cream = instacart%>%
   filter(product_name=="Pink Lady Apples"|product_name=="Coffee Ice Cream")%>%
-  group_by(order_dow,product_name)
+  group_by(order_dow,product_name) #named variable pink_lady_coffee_ice_cream to show that it gives information about the two products, Pink Lady Apples and Coffee Ice Cream. 
   
 table = dplyr::summarise(pink_lady_coffee_ice_cream,mean=mean(order_hour_of_day))%>%
   ungroup()%>%
-  pivot_wider(names_from=order_dow,values_from=mean)
+  pivot_wider(names_from=order_dow,values_from=mean) #named variable table as it puts the information from the pink_lady_coffee_ice_cream variable into a tabular format
 colnames(table) = c("Product Name", "Monday", "Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
 table
 ```
@@ -74,21 +74,25 @@ This table shows the mean hour of the day when Coffee Ice Cream and Pink Lady Ap
 # Problem 2:
 ```{r}
 setwd("/Users/13038/Downloads")
-accel = read.csv("accel_data.csv")
+accel = read.csv("accel_data.csv") #reading in accel data set, named variable the same name as the data set.
 accel = accel%>%
   mutate(week = factor(week))%>%
   mutate(weekday_weekend = factor(recode(day,Monday="Weekday",Tuesday="Weekday",Wednesday="Weekday",Thursday="Weekday",Friday="Weekday",Saturday="Weekend",Sunday="Weekend")))%>%
   pivot_longer(activity.1:activity.1440,names_to="Activity_Minute",values_to="Activity_Counts")
 ```
-There are `r nrow(accel)` observations in this data set corresponding to the number of days in which observations were taken and there are `r ncol(accel)` variables which corresponds to the week,day id , day, Activity minute (one row per minute of every day), Activity Counts which gives the value of the activity at that particular minute given in the column next to it, and the weekday vs weekend variable. The value for each activity time variable gives the activity counted at that particular minute of the day. Furthermore, in my tidying procedure I have converted the week variable into a factor since the week is a categorical variable. I also pivoted the activity variables to the longer format as I thought it would be easier to manipulate in the next step when I have to aggregate all of the activity's together by day. 
+After I have done some data cleaning and preparation for the next steps of the problem such as pivoting the data set longer, there are `r nrow(accel)` observations in this data set corresponding to the number of days in which observations were taken and there are `r ncol(accel)` variables which corresponds to the week,day id , day, Activity minute (one row per minute of every day), Activity Counts which gives the value of the activity at that particular minute given in the column next to it, and the weekday vs weekend variable. The value for each activity time variable gives the activity counted at that particular minute of the day. Furthermore, in my tidying procedure I have converted the week variable into a factor since the week is a categorical variable. I also pivoted the activity variables to the longer format as I thought it would be easier to manipulate in the next step when I have to aggregate all of the activity's together by day. 
 
 ```{r}
-total_activity_per_day=aggregate(pull(accel,Activity_Counts),by = list(pull(accel,week),pull(accel,day)),FUN=sum)
+total_activity_per_day=aggregate(pull(accel,Activity_Counts),by = list(pull(accel,week),pull(accel,day)),FUN=sum) #named variable total_activity_per_day as it aggregates information from the accel data set to give the total amount of activity the patient did per day instead of per minute. 
 accel = accel %>%
   pivot_wider(names_from="Activity_Minute",values_from="Activity_Counts")%>%
-  mutate(total_activity_per_day = pull(total_activity_per_day,x))
+  mutate(total_activity_per_day = pull(total_activity_per_day,x))%>%
+  group_by(week)%>%
+  dplyr::arrange(desc(total_activity_per_day),by_group=T)
 summarise(.data=accel,Week=week,Day=day,Total_Activity_Per_Day=total_activity_per_day)
 ```
+
+The table above shows the total activity per day for each day that accelerometer data was recorded. A trend that is apparent to me is that the total activity seems to be higher, in general, on Thursdays and Fridays when compared to other days of the week. Furthermore, it seems that Tuesdays are a very low activity day for this person judging from the table. 
 
 ```{r}
 ggplot(data=accel,aes(x=day_id,y=total_activity_per_day,color=day))+
@@ -98,10 +102,12 @@ ggplot(data=accel,aes(x=day_id,y=total_activity_per_day,color=day))+
   ggtitle("Total Activity Measured Per Day Over 5 Weeks")
 ```
 
+From this plot, I see a very similar pattern to the table above in that Thursday and Fridays seem to have more activity whereas Tuesdays seem to have the least activity, in general. There also seems to be two outliers in week 2 on Wednesday and Friday of that week which could indicate that the patient did not wear the accelerometer on those days. Another thing I noticed is that the activity totals were more spread out by day initally but in the later days of the study the total activity per day was more consistent. This could be due to the patient developing an activity routine and thus becoming more consistent throughout the week with his activity as a result. 
+
 # Problem 3:
 ```{r}
 library(p8105.datasets)
-data("ny_noaa")
+data("ny_noaa") #reading in ny_noaa data set
 ```
 
 The ny_noaa data set contains `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns. The data set contains information from all New York state weather stations such as precipitation in tenths of a mm (prcp), snowfall in mm (snow), snow depth in mm (snwd), maximum temperature (tmax), minimum temperature (tmin), as well as the date (date) and station (id) where the information was collected. Missing data is definitely an issue in this data set as there are `r colSums(is.na(ny_noaa))` rows by column in the data set that contain missing values. Some of these columns have almost 50% of the data missing which is a very large amount. 
@@ -111,18 +117,18 @@ ny_noaa=separate(ny_noaa,col="date",into=c("year","month","day"),sep="-")
 ny_noaa=ny_noaa%>%
   dplyr::arrange(year,month)%>%
   mutate(prcp=prcp/100,snow=snow/10,snwd=snwd/10,tmax=as.integer(tmax)/10,tmin=as.integer(tmin)/10) #converted length measurements to centimeters and temperature measurements to degrees from tenths of a degree
-mode_snowfall = data.frame(table(pull(ny_noaa,snow)))
+freq_snowfall = data.frame(table(pull(ny_noaa,snow))) #named variable freq_snowfall because it gives the frequency of snowfall measures
 ```
 
-For snowfall, the most commonly observed values are `r top_n(mode_snowfall,n=1,wt=Freq)[1]` cm. This is probably because there is not that much snow between the months of April through October or November in most areas of the United States, including New York. Therefore, for most of the year you will see 0 cm of snowfall recorded which is why it is the most commonly observed value for snowfall. 
+For snowfall, the most commonly observed values are `r top_n(freq_snowfall,n=1,wt=Freq)[1]` cm. This is probably because there is not that much snow between the months of April through October or November in most areas of the United States, including New York. Therefore, for most of the year you will see 0 cm of snowfall recorded which is why it is the most commonly observed value for snowfall. 
 
 ```{r}
-data = aggregate(pull(ny_noaa,tmax),by = list(pull(ny_noaa,month),pull(ny_noaa,year),pull(ny_noaa,id)),FUN=mean,na.rm=T)
-data = filter(data,Group.1=="01"|Group.1=="07")
-data = data%>%
+data_avg_tmax = aggregate(pull(ny_noaa,tmax),by = list(pull(ny_noaa,month),pull(ny_noaa,year),pull(ny_noaa,id)),FUN=mean,na.rm=T) #named variable data_avg_tmax because it is a data subset from the ny_noaa data set that aggregates information about the maximum temperature by the mean.
+data_avg_tmax = filter(data_avg_tmax,Group.1=="01"|Group.1=="07")
+data_avg_tmax = data_avg_tmax%>%
   mutate(Group.1 = recode(Group.1,"01"="January","07"="July"))
-data = na.omit(data)
-ggplot(data, aes(x = Group.2, y = x)) +
+data_avg_tmax = na.omit(data_avg_tmax)
+ggplot(data_avg_tmax, aes(x = Group.2, y = x)) +
   geom_boxplot()+
   facet_grid(. ~ Group.1)+
   theme_bw()+
@@ -132,14 +138,17 @@ ggplot(data, aes(x = Group.2, y = x)) +
   ggtitle("Average Max Temperatures at Each Station in January and July each Year")
 ```
 
+This plot shows the average of the maximum temperatures per year in January and July at every station in the data set. The average maximum temperature for these two months seems to vary every year and does not really have a distinct pattern to it. However, there are definitely some outliers in the data set. For example, in July of 1988 there is a clear outlier as well as January 1982 and January 2005. 
+
 ```{r}
-data = select(ny_noaa,c("id","year","month","day","tmax","tmin"))%>%
+#named variable data_tmax_tmin because it seperates the data from ny_noaa by the maximum temperature and minimum temperature, making it easier to create a facet plot in the next step.
+data_tmax_tmin = select(ny_noaa,c("id","year","month","day","tmax","tmin"))%>%
   pivot_longer(tmax:tmin,names_to="Temperature",values_to="Temperature_Val")%>%
   mutate(date = paste0(month,"-",day,"-",year))%>%
   na.omit()%>%
   select(-c("month","day","year"))
-ggplot(data, aes(x = date, y = Temperature_Val)) +
-  geom_line()+
+ggplot(data_tmax_tmin, aes(x = date, y = Temperature_Val)) +
+  geom_line(size=0.25)+
   facet_grid(. ~Temperature)+
   theme_bw()+
   theme(axis.text.x = element_blank(),plot.title=element_text(size=10), axis.ticks.x = element_blank())+
@@ -147,13 +156,13 @@ ggplot(data, aes(x = date, y = Temperature_Val)) +
   ylab("Temperature(degrees Celcius)")+
   ggtitle("Max Temperatures and Min Temperatures at Each Station for Each Day In Data Set")
 
-data = filter(ny_noaa,snow<10&snow>0)
-data = aggregate(pull(data,snow),by = list(pull(data,year)),FUN=sum,na.rm=T)
-ggplot(data,aes(x=Group.1,y=x))+
+data_snow_0_10 = filter(ny_noaa,snow<10&snow>0) #named variable data_snow_0_10 because it only contains data from the ny_noaa data set where the snowfall is above 0 cm and below 10 cm (100 mm). 
+data_snow_0_10 = aggregate(pull(data_snow_0_10,snow),by = list(pull(data_snow_0_10,year)),FUN=sum,na.rm=T)
+ggplot(data_snow_0_10,aes(x=Group.1,y=x))+
   geom_bar(stat="identity")+
     theme_bw()+
   theme(axis.text.x = element_text(size=8,angle=90),plot.title=element_text(size=11))+
   xlab("Year")+
   ylab("Snowfall (cm)")+
-  ggtitle("Distribution of Snowfall between 0 and 100 mm for every year")
+  ggtitle("Distribution of Snowfall between 0 and 10 cm or 100 mm for every year")
 ```
