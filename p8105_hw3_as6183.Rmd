@@ -92,7 +92,7 @@ accel = accel %>%
 summarise(.data=accel,Week=week,Day=day,Total_Activity_Per_Day=total_activity_per_day)
 ```
 
-The table above shows the total activity per day for each day that accelerometer data was recorded. A trend that is apparent to me is that the total activity seems to be higher, in general, on Thursdays and Fridays when compared to other days of the week. Furthermore, it seems that Tuesdays are a very low activity day for this person judging from the table. 
+The table above shows the total activity per day for each day that accelerometer data was recorded,ordered by descending total activity per day so I can analyze which days of the week have higher or lower activity. A trend that is apparent to me is that the total activity seems to be higher, in general, on Thursdays and Fridays when compared to other days of the week. Furthermore, it seems that Tuesdays are a very low activity day for this person judging from the table. 
 
 ```{r}
 ggplot(data=accel,aes(x=day_id,y=total_activity_per_day,color=day))+
@@ -117,10 +117,11 @@ ny_noaa=separate(ny_noaa,col="date",into=c("year","month","day"),sep="-")
 ny_noaa=ny_noaa%>%
   dplyr::arrange(year,month)%>%
   mutate(prcp=prcp/100,snow=snow/10,snwd=snwd/10,tmax=as.integer(tmax)/10,tmin=as.integer(tmin)/10) #converted length measurements to centimeters and temperature measurements to degrees from tenths of a degree
-freq_snowfall = data.frame(table(pull(ny_noaa,snow))) #named variable freq_snowfall because it gives the frequency of snowfall measures
+freq_snowfall = data.frame(table(pull(ny_noaa,snow)))%>%
+  top_n(n=3,wt=Freq)#named variable freq_snowfall because it gives the frequency of snowfall measures
 ```
 
-For snowfall, the most commonly observed values are `r top_n(freq_snowfall,n=1,wt=Freq)[1]` cm. This is probably because there is not that much snow between the months of April through October or November in most areas of the United States, including New York. Therefore, for most of the year you will see 0 cm of snowfall recorded which is why it is the most commonly observed value for snowfall. 
+For snowfall, the most commonly observed values are `r pull(freq_snowfall,Var1)` cm. This is probably because there is not that much snow between the months of April through October or November in most areas of the United States, including New York. Therefore, for most of the year you will see 0 cm or a low amount, such as 1.3 or 2.5 cm, of snowfall recorded which is why it makes sense that 0, 1.3, and 2.5 cm are the most commonly observed values for snowfall. 
 
 ```{r}
 data_avg_tmax = aggregate(pull(ny_noaa,tmax),by = list(pull(ny_noaa,month),pull(ny_noaa,year),pull(ny_noaa,id)),FUN=mean,na.rm=T) #named variable data_avg_tmax because it is a data subset from the ny_noaa data set that aggregates information about the maximum temperature by the mean.
@@ -148,21 +149,30 @@ data_tmax_tmin = select(ny_noaa,c("id","year","month","day","tmax","tmin"))%>%
   na.omit()%>%
   select(-c("month","day","year"))
 ggplot(data_tmax_tmin, aes(x = date, y = Temperature_Val)) +
-  geom_line(size=0.25)+
+  geom_line(size=0.25,alpha=0.2)+
+  stat_smooth()+
   facet_grid(. ~Temperature)+
   theme_bw()+
   theme(axis.text.x = element_blank(),plot.title=element_text(size=10), axis.ticks.x = element_blank())+
   xlab("Time")+
   ylab("Temperature(degrees Celcius)")+
   ggtitle("Max Temperatures and Min Temperatures at Each Station for Each Day In Data Set")
+```
 
-data_snow_0_10 = filter(ny_noaa,snow<10&snow>0) #named variable data_snow_0_10 because it only contains data from the ny_noaa data set where the snowfall is above 0 cm and below 10 cm (100 mm). 
-data_snow_0_10 = aggregate(pull(data_snow_0_10,snow),by = list(pull(data_snow_0_10,year)),FUN=sum,na.rm=T)
-ggplot(data_snow_0_10,aes(x=Group.1,y=x))+
+This plot shows the maximum and minimum temperatures for the full data set. Overall from both graphs we can see the same trend of a slight increase leading to a spike in temperature and then a decrease in temperature values. Also, we can see that there are a variety of different maximum and minimum temperatures as the lines at every time interval (corresponding to the station record) varies greatly. I think this plot definitely gives a good idea of the range of snowfall values for stations over time and summarizes the overall trend of snowfall very nicely. 
+
+```{r}
+data_snow_0_10 = ny_noaa%>%
+  filter(snow<10&snow>0)#named variable data_snow_0_10 because it only contains data from the ny_noaa data set where the snowfall is above 0 cm and below 10 cm (100 mm). 
+data_snow_0_10 = data_snow_0_10%>%
+  group_by(year)
+data_snow_0_10 = data.frame(table(pull(data_snow_0_10,year)))
+ggplot(data_snow_0_10,aes(x=Var1,y=Freq))+
   geom_bar(stat="identity")+
     theme_bw()+
   theme(axis.text.x = element_text(size=8,angle=90),plot.title=element_text(size=11))+
   xlab("Year")+
-  ylab("Snowfall (cm)")+
+  ylab("Frequency of Snowfall between 0 and 10 cm (100 mm)")+
   ggtitle("Distribution of Snowfall between 0 and 10 cm or 100 mm for every year")
 ```
+From the graph above, it can be seen that there is a significant trend upward in the amount of times snowfall between 0 and 100 mm was recorded starting in 1998. This could be due to a decrease in snowfall from 1998 onwards when compared to previous years, thus causing more values between 0 and 100 mm to be recorded by weather stations. This makes sense due to climate change and global warming that has been occurring over the past several years. 
